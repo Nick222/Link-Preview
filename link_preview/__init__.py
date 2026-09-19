@@ -19,7 +19,7 @@ class LinkPreviewPlugin(PluginClass):
         (
             'preview_start_line',
             'int',
-            'First preview line',
+            'First preview non-empty line',
             1,
             (1, 1000),
         ),
