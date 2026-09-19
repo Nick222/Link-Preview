@@ -3,7 +3,7 @@ from gi.repository import Gtk, Gdk, GLib
 from zim.plugins import PluginClass
 from zim.gui.pageview import PageViewExtension
 from zim.gui.pageview.textbuffer import TextBuffer
-from zim.notebook import HRef
+from zim.notebook import HRef, get_notebook_list
 from zim.parse.links import link_type
 
 
@@ -14,6 +14,30 @@ class LinkPreviewPlugin(PluginClass):
         'description': _('Show a preview when hovering over a link'),
         'author': 'Nick',
     }
+
+    plugin_preferences = (
+        (
+            'preview_start_line',
+            'int',
+            'First preview line',
+            1,
+            (1, 1000),
+        ),
+        (
+            'preview_line_count',
+            'int',
+            'Number of preview lines',
+            5,
+            (1, 100),
+        ),
+        (
+            'max_line_chars',
+            'int',
+            'Maximum characters per line',
+            100,
+            (1, 1000),
+        ),
+    )
 
 
 class LinkPreviewPageViewExtension(PageViewExtension):
@@ -120,7 +144,37 @@ class LinkPreviewPageViewExtension(PageViewExtension):
             Gtk.ShadowType.OUT
         )
 
-        label_text = 'Ссылка: ' + self._hover_link
+        href = self._hover_link
+
+        print(
+            'LINK PREVIEW: href =',
+            href
+        )
+
+        print(
+            'LINK PREVIEW: link_type =',
+            link_type(href)
+        )
+
+        if href.startswith(('http://', 'https://')):
+            label_text = 'Интернет-ссылка'
+
+        elif href.startswith('zotero://'):
+            label_text = 'Zotero-ссылка'
+
+        elif link_type(href) == 'interwiki':
+            interwiki = href.split('?', 1)[0]
+            notebook_name = interwiki
+
+            for notebook in get_notebook_list():
+                if notebook.interwiki == interwiki:
+                    notebook_name = notebook.name
+                    break
+
+            label_text = 'Ссылка на блокнот ' + notebook_name
+
+        else:
+            label_text = 'Ссылка: ' + href
 
         if link_type(self._hover_link) == 'page':
             href_obj = HRef.new_from_wiki_link(
@@ -173,7 +227,29 @@ class LinkPreviewPageViewExtension(PageViewExtension):
                     if line.strip()
                 ]
 
-                preview_lines = nonempty_lines[:5]
+                preview_start_line = self.plugin.preferences[
+                    'preview_start_line'
+                ]
+
+                preview_line_count = self.plugin.preferences[
+                    'preview_line_count'
+                ]
+
+                max_line_chars = self.plugin.preferences[
+                    'max_line_chars'
+                ]
+
+                preview_lines = nonempty_lines[
+                    preview_start_line - 1:
+                    preview_start_line - 1 + preview_line_count
+                ]
+
+                preview_lines = [
+                    line[:max_line_chars] + '...'
+                    if len(line) > max_line_chars
+                    else line
+                    for line in preview_lines
+                ]
 
                 print(
                     "LINK PREVIEW: preview lines =",
