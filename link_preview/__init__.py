@@ -8,15 +8,17 @@ class LinkPreviewPlugin(PluginClass):
 
     plugin_info = {
         'name': _('Link Preview'),
-        'description': _('Show a preview of a link when hovering over it'),
+        'description': _('Show a preview when hovering over a link'),
         'author': 'Nick',
     }
 
 
 class LinkPreviewPageViewExtension(PageViewExtension):
 
-    def __init__(self, pageview):
-        super().__init__(pageview)
+    def __init__(self, plugin, pageview):
+        super().__init__(plugin, pageview)
+
+        print("LINK PREVIEW: extension created")
 
         self.textview = self.pageview.textview
 
@@ -24,6 +26,7 @@ class LinkPreviewPageViewExtension(PageViewExtension):
         self._popup = None
         self._hover_x = 0
         self._hover_y = 0
+        self._hover_link = None
 
         self.textview.add_events(
             Gdk.EventMask.POINTER_MOTION_MASK |
@@ -40,67 +43,65 @@ class LinkPreviewPageViewExtension(PageViewExtension):
             self._on_leave
         )
 
-    def _cancel_timeout(self):
-        if self._hover_timeout is not None:
-            GLib.source_remove(self._hover_timeout)
-            self._hover_timeout = None
-
-    def _hide_popup(self):
-        self._cancel_timeout()
-
-        if self._popup is not None:
-            self._popup.destroy()
-            self._popup = None
-
-    def _on_leave(self, textview, event):
-        self._cancel_timeout()
-        return False
-
     def _on_motion(self, textview, event):
+        iter, coords = self.textview._get_pointer_location()
+
+        link = None
+
+        if iter:
+            link = self.textview.get_buffer().get_link_data(iter)
+
         self._hover_x = event.x
         self._hover_y = event.y
 
         self._cancel_timeout()
 
-        self._hover_timeout = GLib.timeout_add(
-            500,
-            self._show_preview
-        )
+        if link:
+            self._hover_link = link['href']
+
+            print(
+                "LINK PREVIEW: link =",
+                link
+            )
+
+            self._hover_timeout = GLib.timeout_add(
+                500,
+                self._show_preview
+            )
+        else:
+            self._hover_link = None
+            self._hide_popup()
 
         return False
+
+    def _on_leave(self, textview, event):
+        self._cancel_timeout()
+        self._hide_popup()
+        self._hover_link = None
+
+        return False
+
+    def _cancel_timeout(self):
+        if self._hover_timeout is not None:
+            GLib.source_remove(
+                self._hover_timeout
+            )
+            self._hover_timeout = None
 
     def _show_preview(self):
         self._hover_timeout = None
 
-        x = int(self._hover_x)
-        y = int(self._hover_y)
-
-        text_iter = self.textview.get_iter_at_location(
-            x,
-            y
-        )
-
-        tags = text_iter.get_tags()
-
-        link_tag = None
-
-        for tag in tags:
-            name = tag.get_property('name')
-
-            if name and 'link' in name.lower():
-                link_tag = tag
-                break
-
-        if link_tag is None:
-            return False
-
-        self._show_popup(
-            'Ссылка обнаружена'
-        )
+        if self._hover_link:
+            self._show_popup()
 
         return False
 
-    def _show_popup(self, text):
+    def _hide_popup(self):
+        if self._popup is not None:
+            self._popup.destroy()
+            self._popup = None
+
+    def _show_popup(self):
         self._hide_popup()
 
         window = Gtk.Window(
@@ -117,7 +118,7 @@ class LinkPreviewPageViewExtension(PageViewExtension):
         )
 
         label = Gtk.Label(
-            label=text
+            label='Ссылка: ' + self._hover_link
         )
 
         label.set_margin_start(10)
@@ -129,26 +130,17 @@ class LinkPreviewPageViewExtension(PageViewExtension):
         window.add(frame)
 
         window.show_all()
+        window.realize()
 
-        toplevel = self.pageview.get_toplevel()
+        display = self.textview.get_display()
+        seat = display.get_default_seat()
+        pointer = seat.get_pointer()
 
-        window.set_transient_for(
-            toplevel
-        )
-
-        allocation = self.textview.get_allocation()
-
-        root_x, root_y = self.textview.translate_coordinates(
-            toplevel,
-            0,
-            0
-        )
+        screen, pointer_x, pointer_y = pointer.get_position()
 
         window.move(
-            root_x + int(self._hover_x) + 15,
-            root_y + int(self._hover_y) + 20
+            pointer_x + 15,
+            pointer_y + 15
         )
 
         self._popup = window
-
-        return False
