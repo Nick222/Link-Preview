@@ -166,6 +166,22 @@ class LinkPreviewPageViewExtension(PageViewExtension):
                     True
                 )
 
+                lines = label_text.splitlines()
+
+                nonempty_lines = [
+                    line for line in lines
+                    if line.strip()
+                ]
+
+                preview_lines = nonempty_lines[:5]
+
+                print(
+                    "LINK PREVIEW: preview lines =",
+                    repr(preview_lines)
+                )
+
+                label_text = '\n'.join(preview_lines)
+
                 print(
                     "LINK PREVIEW: text length =",
                     len(label_text)
@@ -176,10 +192,12 @@ class LinkPreviewPageViewExtension(PageViewExtension):
                 )
 
         label = Gtk.Label()
-
         label.set_text(label_text)
-        label.set_line_wrap(True)
-        label.set_size_request(600, 150)
+        print(
+            "LINK PREVIEW: label text =",
+            repr(label.get_text())
+        )
+        label.set_line_wrap(False)
 
         label.set_margin_start(10)
         label.set_margin_end(10)
@@ -193,6 +211,11 @@ class LinkPreviewPageViewExtension(PageViewExtension):
         window.add(frame)
 
         window.show_all()
+        print(
+            "LINK PREVIEW: label size =",
+            label.get_allocated_width(),
+            label.get_allocated_height()
+        )
         self.pageview._overlay_label.hide()
         window.realize()
 
