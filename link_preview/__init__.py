@@ -45,8 +45,6 @@ class LinkPreviewPageViewExtension(PageViewExtension):
     def __init__(self, plugin, pageview):
         super().__init__(plugin, pageview)
 
-        print("LINK PREVIEW: extension created")
-
         self.textview = self.pageview.textview
 
         self._hover_timeout = None
@@ -85,11 +83,6 @@ class LinkPreviewPageViewExtension(PageViewExtension):
 
         if link:
             self._hover_link = link['href']
-
-            print(
-                "LINK PREVIEW: link =",
-                link
-            )
 
             self._hover_timeout = GLib.timeout_add(
                 500,
@@ -146,16 +139,6 @@ class LinkPreviewPageViewExtension(PageViewExtension):
 
         href = self._hover_link
 
-        print(
-            'LINK PREVIEW: href =',
-            href
-        )
-
-        print(
-            'LINK PREVIEW: link_type =',
-            link_type(href)
-        )
-
         if href.startswith(('http://', 'https://')):
             label_text = 'Интернет-ссылка'
 
@@ -186,29 +169,14 @@ class LinkPreviewPageViewExtension(PageViewExtension):
                 href_obj
             )
 
-            print(
-                "LINK PREVIEW: path =",
-                path
-            )
-
             page = self.pageview.notebook.get_page(path)
             tree = page.get_parsetree()
-
-            print("LINK PREVIEW: page =", page)
-            print("LINK PREVIEW: hascontent =", page.hascontent)
-            print("LINK PREVIEW: tree =", tree)
-            print("LINK PREVIEW: tree.hascontent =", tree.hascontent if tree else None)
 
             if tree is not None:
                 buffer = TextBuffer(
                     self.pageview.notebook,
                     page,
                     parsetree=tree
-                )
-
-                print(
-                    "LINK PREVIEW: buffer hascontent =",
-                    buffer.hascontent
                 )
 
                 start = buffer.get_start_iter()
@@ -251,28 +219,15 @@ class LinkPreviewPageViewExtension(PageViewExtension):
                     for line in preview_lines
                 ]
 
-                print(
-                    "LINK PREVIEW: preview lines =",
-                    repr(preview_lines)
-                )
-
                 label_text = '\n'.join(preview_lines)
 
-                print(
-                    "LINK PREVIEW: text length =",
-                    len(label_text)
-                )
-                print(
-                    "LINK PREVIEW: text =",
-                    repr(label_text[:500])
-                )
-
         label = Gtk.Label()
+
+        font_desc = self.pageview.textview.get_pango_context().get_font_description()
+        label.override_font(font_desc)
+
         label.set_text(label_text)
-        print(
-            "LINK PREVIEW: label text =",
-            repr(label.get_text())
-        )
+
         label.set_line_wrap(False)
 
         label.set_margin_start(10)
@@ -287,11 +242,7 @@ class LinkPreviewPageViewExtension(PageViewExtension):
         window.add(frame)
 
         window.show_all()
-        print(
-            "LINK PREVIEW: label size =",
-            label.get_allocated_width(),
-            label.get_allocated_height()
-        )
+
         self.pageview._overlay_label.hide()
         window.realize()
 
@@ -300,16 +251,6 @@ class LinkPreviewPageViewExtension(PageViewExtension):
         pointer = seat.get_pointer()
 
         screen, pointer_x, pointer_y = pointer.get_position()
-
-        print(
-            "LINK PREVIEW: popup size =",
-            window.get_size()
-        )
-        print(
-            "LINK PREVIEW: popup position =",
-            pointer_x + 15,
-            pointer_y + 15
-        )
 
         window.move(
             pointer_x + 15,
